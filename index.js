@@ -87,10 +87,9 @@ app.get("/test", async (req, res) => {
     } catch (error) {
         console.error(error);
         res.send("❌ Error al enviar");
-    }
-});
-
+    }});
 
 app.listen(PORT, () => {
     console.log("Servidor corriendo en puerto " + PORT);
 });
+
