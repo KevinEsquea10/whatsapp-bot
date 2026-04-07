@@ -74,7 +74,7 @@ app.post("/send", async (req, res) => {
 
 app.get("/test", async (req, res) => {
 
-    const number = "573001234567"; // TU NÚMERO
+    const number = "573044151031"; // TU NÚMERO
     const message = "Mensaje de prueba 🚀";
 
     try {
