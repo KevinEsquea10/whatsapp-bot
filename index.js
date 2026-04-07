@@ -9,6 +9,9 @@ const {
 
 const app = express();
 app.use(express.json());
+const QRCode = require("qrcode");
+
+let latestQR = null;
 const PORT = process.env.PORT || 3000;
 
 let sock;
@@ -24,46 +27,24 @@ async function startBot() {
     });
 
     // 🔥 MANEJO COMPLETO DE CONEXIÓN
-    sock.ev.on("connection.update", (update) => {
-        const { connection, lastDisconnect, qr } = update;
+    sock.ev.on("connection.update", async (update) => {
+    const { connection, qr } = update;
 
-        if (qr) {
-            console.log("📲 Escanea este QR:");
-            qrcode.generate(qr, { small: true });
-        }
+    if (qr) {
+        console.log("QR generado");
 
-        if (connection === "open") {
-            console.log("✅ Conectado a WhatsApp");
-        }
+        // 🔥 Generar imagen base64
+        latestQR = await QRCode.toDataURL(qr);
+    }
 
-        if (connection === "close") {
-            const shouldReconnect =
-                lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-
-            console.log("❌ Conexión cerrada. Reconectando:", shouldReconnect);
-
-            if (shouldReconnect) {
-                startBot();
-            }
-        }
-    });
-
-    sock.ev.on("creds.update", saveCreds);
+    if (connection === "open") {
+        console.log("✅ Conectado a WhatsApp");
+        latestQR = null;
+    }
+});
 }
 
 startBot();
-
-app.get("/qr", (req, res) => {
-
-    if (!latestQR) {
-        return res.send("No hay QR disponible o ya estás conectado");
-    }
-
-    res.send(`
-        <h2>Escanea el QR</h2>
-        <img src="${latestQR}" />
-    `);
-});
 
 
 // 🚀 ENDPOINT PARA ENVIAR MENSAJES
@@ -99,6 +80,18 @@ app.get("/test", async (req, res) => {
         console.error(error);
         res.send("❌ Error al enviar");
     }
+});
+
+app.get("/qr", (req, res) => {
+
+    if (!latestQR) {
+        return res.send("No hay QR disponible o ya estás conectado");
+    }
+
+    res.send(`
+        <h2>Escanea el QR</h2>
+        <img src="${latestQR}" />
+    `);
 });
 
 app.listen(PORT, () => {
