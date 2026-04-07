@@ -53,6 +53,18 @@ async function startBot() {
 
 startBot();
 
+app.get("/qr", (req, res) => {
+
+    if (!latestQR) {
+        return res.send("No hay QR disponible o ya estás conectado");
+    }
+
+    res.send(`
+        <h2>Escanea el QR</h2>
+        <img src="${latestQR}" />
+    `);
+});
+
 
 // 🚀 ENDPOINT PARA ENVIAR MENSAJES
 app.post("/send", async (req, res) => {
