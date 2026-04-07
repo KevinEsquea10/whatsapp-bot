@@ -9,9 +9,7 @@ const {
 
 const app = express();
 app.use(express.json());
-const QRCode = require("qrcode");
 
-let latestQR = null;
 const PORT = process.env.PORT || 3000;
 
 let sock;
@@ -27,21 +25,31 @@ async function startBot() {
     });
 
     // 🔥 MANEJO COMPLETO DE CONEXIÓN
-    sock.ev.on("connection.update", async (update) => {
-    const { connection, qr } = update;
+    sock.ev.on("connection.update", (update) => {
+        const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
-        console.log("QR generado");
+        if (qr) {
+            console.log("📲 Escanea este QR:");
+            qrcode.generate(qr, { small: true });
+        }
 
-        // 🔥 Generar imagen base64
-        latestQR = await QRCode.toDataURL(qr);
-    }
+        if (connection === "open") {
+            console.log("✅ Conectado a WhatsApp");
+        }
 
-    if (connection === "open") {
-        console.log("✅ Conectado a WhatsApp");
-        latestQR = null;
-    }
-});
+        if (connection === "close") {
+            const shouldReconnect =
+                lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+
+            console.log("❌ Conexión cerrada. Reconectando:", shouldReconnect);
+
+            if (shouldReconnect) {
+                startBot();
+            }
+        }
+    });
+
+    sock.ev.on("creds.update", saveCreds);
 }
 
 startBot();
@@ -66,8 +74,8 @@ app.post("/send", async (req, res) => {
 
 app.get("/test", async (req, res) => {
 
-    const number = "573003674200"; // cambia por tu número
-    const message = "Mensaje de prueba desde navegador 🚀";
+    const number = "573001234567"; // TU NÚMERO
+    const message = "Mensaje de prueba 🚀";
 
     try {
         await sock.sendMessage(number + "@s.whatsapp.net", {
@@ -82,18 +90,7 @@ app.get("/test", async (req, res) => {
     }
 });
 
-app.get("/qr", (req, res) => {
-
-    if (!latestQR) {
-        return res.send("No hay QR disponible o ya estás conectado");
-    }
-
-    res.send(`
-        <h2>Escanea el QR</h2>
-        <img src="${latestQR}" />
-    `);
-});
 
 app.listen(PORT, () => {
-    console.log("Servidor corriendo...");
+    console.log("Servidor corriendo en puerto " + PORT);
 });
