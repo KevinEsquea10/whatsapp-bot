@@ -1,5 +1,5 @@
 const express = require("express");
-const qrcode = require("qrcode-terminal");
+const QRCode = require("qrcode");
 const {
     default: makeWASocket,
     useMultiFileAuthState,
@@ -13,28 +13,31 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 
 let sock;
+let qrGlobal = ""; // 🔥 aquí guardamos el QR en imagen
 
 async function startBot() {
 
     const { state, saveCreds } = await useMultiFileAuthState("auth");
-    const { version } = await fetchLatestBaileysVersion(); // 🔥 CLAVE
+    const { version } = await fetchLatestBaileysVersion();
 
     sock = makeWASocket({
         auth: state,
         version,
     });
 
-    // 🔥 MANEJO COMPLETO DE CONEXIÓN
-    sock.ev.on("connection.update", (update) => {
+    sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log("📲 Escanea este QR:");
-            qrcode.generate(qr, { small: true });
+            console.log("📲 QR recibido, disponible en /qr");
+
+            // 🔥 Convertimos QR a imagen base64
+            qrGlobal = await QRCode.toDataURL(qr);
         }
 
         if (connection === "open") {
             console.log("✅ Conectado a WhatsApp");
+            qrGlobal = ""; // limpiamos QR
         }
 
         if (connection === "close") {
@@ -55,6 +58,19 @@ async function startBot() {
 startBot();
 
 
+// 🔥 ENDPOINT PARA VER EL QR
+app.get("/qr", (req, res) => {
+    if (!qrGlobal) {
+        return res.send("⚠️ No hay QR disponible o ya estás conectado");
+    }
+
+    res.send(`
+        <h2>Escanea el QR con WhatsApp</h2>
+        <img src="${qrGlobal}" />
+    `);
+});
+
+
 // 🚀 ENDPOINT PARA ENVIAR MENSAJES
 app.post("/send", async (req, res) => {
     const { number, message } = req.body;
@@ -72,6 +88,8 @@ app.post("/send", async (req, res) => {
     }
 });
 
+
+// 🧪 ENDPOINT DE PRUEBA
 app.get("/test", async (req, res) => {
 
     const number = "573044151031"; // TU NÚMERO
@@ -87,9 +105,9 @@ app.get("/test", async (req, res) => {
     } catch (error) {
         console.error(error);
         res.send("❌ Error al enviar");
-    }});
-
-app.listen(PORT, () => {
-    console.log("Servidor corriendo en puerto " + PORT);
+    }
 });
 
+app.listen(PORT, () => {
+    console.log("🚀 Servidor corriendo en puerto " + PORT);
+});
